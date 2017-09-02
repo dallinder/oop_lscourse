@@ -1,5 +1,3 @@
-require 'pry'
-
 class Pets
   def speak
     'bark!'
@@ -35,7 +33,6 @@ kitty = Cat.new
 p kitty.speak
 
 frank = Dog.new
-binding pry
 p frank.speak
 
 # Pets
