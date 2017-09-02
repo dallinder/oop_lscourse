@@ -59,6 +59,7 @@ end
 class Human < Player
   def set_name
     n = ""
+    puts "Welcome to Rock, Paper, Lizard, Spock!"
     loop do
       puts "What is your name?"
       n = gets.chomp
@@ -72,7 +73,7 @@ class Human < Player
     choice = nil
     loop do
       puts "Please choose rock, paper, scissors, lizard, or spock:"
-      choice = gets.chomp
+      choice = gets.chomp.downcase
       break if Move::VALUES.include? choice
       puts "Sorry, invalid choice!"
     end
@@ -112,7 +113,7 @@ class Computer < Player
     self.move = if choice_basis
                   Move.new(choice_basis)
                 elsif name == 'R2D2'
-                  r2rd_choice
+                  r2d2_choice
                 elsif name == 'Hal'
                   hal_choice
                 elsif name == 'Chappie'
@@ -136,10 +137,9 @@ class RPSGame
   end
 
   def display_welcome_message
-    puts "Welcome to Rock, Paper, Scissors, Lizard, Spock #{human.name}!"
-    # chose to make this 3 instead of 10 -- to much time to play
-    puts ''
+    puts "Welcome, #{human.name}!"
     puts "You will be playing until either you or the computer gets to 3 wins!"
+    puts "You're opponent will be #{computer.name}!"
   end
 
   def display_game_winner
