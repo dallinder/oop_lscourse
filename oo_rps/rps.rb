@@ -63,7 +63,7 @@ class Human < Player
     loop do
       puts "What is your name?"
       n = gets.chomp
-      break unless n.empty?
+      break unless n.empty? || /[^a-z0-9]/i.match(n)
       puts "Sorry, must enter a value."
     end
     self.name = n
@@ -78,7 +78,6 @@ class Human < Player
       puts "Sorry, invalid choice!"
     end
     self.move = Move.new(choice)
-    # history << move.to_s
   end
 end
 
@@ -200,6 +199,10 @@ class RPSGame
     return false if answer.downcase == 'n'
     return true if answer.downcase == 'y'
   end
+  
+  def clear_screen
+    system 'clear'
+  end
 
   def game_order_loop
     loop do
@@ -224,6 +227,7 @@ class RPSGame
       human.score = 0
       computer.score = 0
       break unless play_again?
+      clear_screen
     end
     display_goodbye_message
   end
