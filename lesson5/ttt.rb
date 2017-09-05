@@ -34,14 +34,21 @@ class Board
     nil
   end
 
+  def threat_count(line)
+    line.select { |el| @squares[el].marker =~ /[^O ]/ }.size == 2 &&
+      line.select { |el| @squares[el].marker == ' ' }.size == 1
+  end
+
+  def threat_marker(line)
+    @squares.select do |k, _|
+      line.include?(k) && @squares[k].marker == Square::INITIAL_MARK
+    end.keys.first
+  end
+
   def detect_threat
     WINNING_LINES.each do |line|
-      if line.select do |el|
-           @squares[el].marker =~ /[^O ]/
-         end.size == 2
-        return @squares.select do |k, _|
-                 line.include?(k) && @squares[k].marker == Square::INITIAL_MARK
-               end.keys.first
+      if threat_count(line)
+        return threat_marker(line)
       end
     end
     nil
@@ -51,14 +58,23 @@ class Board
     return 5 if @squares[5].marker == ' '
   end
 
+  def attack_count(line)
+    line.select do |el|
+      @squares[el].marker == TTTGame::COMPUTER_MARKER
+    end.size == 2 &&
+      line.select { |el| @squares[el].marker == ' ' }.size == 1
+  end
+
+  def attack_marker(line)
+    @squares.select do |k, _|
+      line.include?(k) && @squares[k].marker == Square::INITIAL_MARK
+    end.keys.first
+  end
+
   def attack_to_win
     WINNING_LINES.each do |line|
-      if line.select do |el|
-           @squares[el].marker == TTTGame::COMPUTER_MARKER
-         end.size == 2
-        return @squares.select do |k, _|
-                 line.include?(k) && @squares[k].marker == Square::INITIAL_MARK
-               end.keys.first
+      if attack_count(line)
+        return attack_marker(line)
       end
     end
     nil
@@ -132,7 +148,7 @@ class Player
       loop do
         puts "What is your name?"
         human_name = gets.chomp
-        break unless human_name.empty?
+        break unless human_name.empty? || human_name =~ /[^a-z]/i
         puts "Please enter your name."
       end
       self.name = human_name
@@ -140,10 +156,141 @@ class Player
   end
 end
 
-class TTTGame
+module Display
+  def display_welcome_message
+    puts "Welcome to Tic Tac Toe!"
+    puts "First to win 5 rounds, wins the game!"
+    human.name_choice
+    computer.name_choice
+    puts ""
+  end
+
+  def display_goodbye_message
+    puts "Thanks for playing Tic Tac Toe! Goodbye!"
+  end
+
+  def display_board
+    puts "#{human.name} is #{human.marker}."
+    puts "#{computer.name} is #{computer.marker}."
+    update_score
+    display_score
+    puts ""
+    board.draw
+    puts ""
+  end
+
+  def clear
+    system 'clear'
+  end
+
+  def clear_screen_and_display_board
+    clear
+    display_board
+  end
+
+  def display_result
+    clear_screen_and_display_board
+
+    case board.winning_marker
+    when human.marker
+      puts "You won!"
+    when computer.marker
+      puts "Computer won!"
+    else
+      puts "It's a tie!"
+    end
+  end
+
+  def joinor(array, delimiter=', ', word='or')
+    case array.size
+    when 0 then ''
+    when 1 then array.first
+    when 2 then array.join("#{word} ")
+    else
+      array[-1] = "#{word} #{array.last}"
+      array.join(delimiter)
+    end
+  end
+
+  def reset
+    board.reset
+    clear
+    @current_marker = @first_marker
+  end
+
+  def display_play_again_message
+    puts "Let's play again!"
+    puts ''
+  end
+end
+
+module Moves
   HUMAN_MARKER = "X"
   COMPUTER_MARKER = 'O'
-  # FIRST_TO_MOVE = who_moves_first
+
+  def human_moves
+    puts "Please choose #{joinor(board.unmarked_keys)}"
+    square = nil
+    loop do
+      square = gets.chomp.to_i
+      break if board.unmarked_keys.include?(square)
+      puts "Sorry, that's not a vaild choice."
+    end
+
+    board[square] = human.marker
+  end
+
+  def computer_attack_or_defend
+    if board.attack_to_win
+      board[board.attack_to_win] = computer.marker
+    elsif board.detect_threat
+      board[board.detect_threat] = computer.marker
+    end
+  end
+
+  def computer_moves
+    if computer_attack_or_defend
+      computer.marker
+    elsif board.attack_sq_five
+      board[board.attack_sq_five] = computer.marker
+    else
+      board[board.unmarked_keys.sample] = computer.marker
+    end
+  end
+
+  def human_turn?
+    @current_marker == HUMAN_MARKER
+  end
+
+  def current_player_moves
+    if human_turn?
+      human_moves
+      @current_marker = COMPUTER_MARKER
+    else
+      computer_moves
+      @current_marker = HUMAN_MARKER
+    end
+  end
+
+  def who_moves_first
+    answer = nil
+    loop do
+      puts "Who should go first? (P)layer or (C)omputer?"
+      answer = gets.chomp.downcase
+      break if answer == 'p' || answer == 'c'
+      puts "Please enter P for player or C for computer."
+    end
+    if answer == 'p'
+      @first_marker = HUMAN_MARKER
+    elsif answer == 'c'
+      @first_marker = COMPUTER_MARKER
+    end
+  end
+end
+
+class TTTGame
+  include Display
+  include Moves
 
   attr_reader :board, :human, :computer
   attr_accessor :human_score, :computer_score
@@ -200,97 +347,22 @@ class TTTGame
     loop do
       puts "Please pick a 1 character marker."
       marker = gets.chomp
-      break unless marker.size > 1
+      break unless marker.size != 1 || marker =~ /[ ]/
       "Your marker has more than 1 character, please pick 1 character."
     end
     human.marker = marker
   end
 
-  def clear
-    system 'clear'
-  end
-
-  def display_welcome_message
-    puts "Welcome to Tic Tac Toe!"
-    puts "First to win 5 rounds, wins the game!"
-    human.name_choice
-    computer.name_choice
-    puts ""
-  end
-
-  def display_goodbye_message
-    puts "Thanks for playing Tic Tac Toe! Goodbye!"
-  end
-
-  def display_board
-    puts "#{human.name} is #{human.marker}."
-    puts "#{computer.name} is #{computer.marker}."
-    puts score
-    puts ""
-    board.draw
-    puts ""
-  end
-
-  def clear_screen_and_display_board
-    clear
-    display_board
-  end
-
-  def joinor(array, delimiter=', ', word='or')
-    case array.size
-    when 0 then ''
-    when 1 then array.first
-    when 2 then array.join(" #{word} ")
-    else
-      array[-1] = " #{word} #{array.last}"
-      array.join(delimiter)
-    end
-  end
-
-  def human_moves
-    puts "Please choose #{joinor(board.unmarked_keys)}"
-    square = nil
-    loop do
-      square = gets.chomp.to_i
-      break if board.unmarked_keys.include?(square)
-      puts "Sorry, that's not a vaild choice."
-    end
-
-    board[square] = human.marker
-  end
-
-  def computer_moves
-    if board.attack_to_win
-      board[board.attack_to_win] = computer.marker
-    elsif board.attack_sq_five
-      board[board.attack_sq_five] = computer.marker
-    elsif board.detect_threat
-      board[board.detect_threat] = computer.marker
-    else
-      board[board.unmarked_keys.sample] = computer.marker
-    end
-  end
-
-  def score
+  def update_score
     case board.winning_marker
     when human.marker then self.human_score += 1
     when computer.marker then self.computer_score += 1
     end
-    puts "#{human.name}: #{self.human_score}"
-    puts "#{computer.name}: #{self.computer_score}"
   end
 
-  def display_result
-    clear_screen_and_display_board
-
-    case board.winning_marker
-    when human.marker
-      puts "You won!"
-    when computer.marker
-      puts "Computer won!"
-    else
-      puts "It's a tie!"
-    end
+  def display_score
+    puts "#{human.name}: #{self.human_score}"
+    puts "#{computer.name}: #{self.computer_score}"
   end
 
   def play_again?
@@ -305,49 +377,9 @@ class TTTGame
     answer == 'y'
   end
 
-  def reset
-    board.reset
-    clear
-    @current_marker = @first_marker
-  end
-
   def score_reset
     @human_score = 0
     @computer_score = 0
-  end
-
-  def display_play_again_message
-    puts "Let's play again!"
-    puts ''
-  end
-
-  def human_turn?
-    @current_marker == HUMAN_MARKER
-  end
-
-  def current_player_moves
-    if human_turn?
-      human_moves
-      @current_marker = COMPUTER_MARKER
-    else
-      computer_moves
-      @current_marker = HUMAN_MARKER
-    end
-  end
-
-  def who_moves_first
-    answer = nil
-    loop do
-      puts "Who should go first? (P)layer or (C)omputer?"
-      answer = gets.chomp.downcase
-      break if answer == 'p' || answer == 'c'
-      puts "Please enter P for player or C for computer."
-    end
-    if answer == 'p'
-      @first_marker = HUMAN_MARKER
-    elsif answer == 'c'
-      @first_marker = COMPUTER_MARKER
-    end
   end
 end
 
